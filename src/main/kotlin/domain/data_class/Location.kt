@@ -6,4 +6,5 @@ class Location {
     val name: String = ""
     val effect: EffectLocation = EffectLocation.Other
     val hidden: Boolean = true
+    val playerPower: Int = 0
 }
