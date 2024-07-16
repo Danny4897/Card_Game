@@ -23,4 +23,8 @@ class GameRepository {
     suspend fun endGame(gameId: String) {
         TODO()
     }
+
+    suspend fun createPlayer(s: String) : Player {
+        return Player(s)
+    }
 }

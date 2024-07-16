@@ -1,16 +1,30 @@
 package org.example
 
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
-fun main() {
-    val name = "Kotlin"
-    //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-    // to see how IntelliJ IDEA suggests fixing it.
-    println("Hello, " + name + "!")
+import org.example.DI.KoinConfig
+import org.example.infrastructure.service.GameService
+import org.koin.core.KoinApplication
+import org.koin.core.context.GlobalContext.get
+import org.koin.core.context.startKoin
 
-    for (i in 1..5) {
-        //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-        // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-        println("i = $i")
+suspend fun main() {
+
+    startKoin{
+        modules(KoinConfig.appModule())
     }
+
+    val gameService : GameService = GameService()
+
+    //Let the user be player 1 and create a player 2
+    val player1 = gameService.createPlayer("Captain America")
+    val player2 = gameService.createPlayer("Iron-Man")
+
+    println("Giocatori creati: ${player1.nickName} e ${player2.nickName}")
+
+    // Start the game
+    gameService.startGame(player1, player2)
+}
+
+
+private inline fun <reified T : Any> KoinApplication.get(): T {
+    return this.koin.get<T>()
 }
