@@ -2,8 +2,6 @@ package org.example
 
 import org.example.DI.KoinConfig
 import org.example.infrastructure.service.GameService
-import org.koin.core.KoinApplication
-import org.koin.core.context.GlobalContext.get
 import org.koin.core.context.startKoin
 
 suspend fun main() {
@@ -21,10 +19,5 @@ suspend fun main() {
     println("Giocatori creati: ${player1.nickName} e ${player2.nickName}")
 
     // Start the game
-    gameService.startGame(player1, player2)
-}
-
-
-private inline fun <reified T : Any> KoinApplication.get(): T {
-    return this.koin.get<T>()
+        gameService.startGame(player1, player2)
 }

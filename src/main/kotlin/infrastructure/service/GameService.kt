@@ -1,14 +1,16 @@
 package org.example.infrastructure.service
 
+import loadCards
+import org.example.domain.data_class.Card
 import org.example.domain.data_class.Game
+import org.example.domain.data_class.Location
 import org.example.domain.data_class.Player
 import org.example.domain.enums.PlayerAction
 import org.example.infrastructure.`interface`.IGameRepository
 
 class GameService() : IGameRepository {
 
-    override suspend fun startGame(player1: Player, player2: Player) {
-
+    override fun startGame(player1: Player, player2: Player) {
         val players = listOf(player1, player2)
 
         val newGame = Game()
@@ -16,36 +18,29 @@ class GameService() : IGameRepository {
         return Play(newGame, players)
     }
 
-    override suspend fun Play(game: Game, players: List<Player>) {
-
+    override fun Play(game: Game, players: List<Player>) {
         var currentTurn = 1
         val maxTurn = 6
         val startPlayer = players.random()
 
         println("Inizio del gioco tra ${players[0].nickName} e ${players[1].nickName}")
 
+        var allCards = loadCards()
+
         for (player in players) {
-            suspend { player.drawCards(3) }
+            player.drawCards(3, allCards)
             player.CurrentMana = 1
         }
 
         while (true) {
-            val firstPlayerToUncover = if(currentTurn == 1) searchLosingPlayer(players, game) else startPlayer
+            val firstPlayerToUncover = if (currentTurn == 1) searchLosingPlayer(players, game) else startPlayer
 
             println("${startPlayer.nickName} scoprirà le carte per primo!")
 
-            println("Inizio del turno di ${startPlayer.nickName}: ${startPlayer.CurrentMana} mana | ${startPlayer.Hand.size} carte in mano")
-            println("Azioni disponibili: ")
-
-            for (i in PlayerAction.entries.toTypedArray().indices) {
-                println("${i + 1}. ${PlayerAction.entries[i]}")
-            }
-
-            println("Seleziona un'azione tramite il numero corrispondente.")
-
-            startTurn(firstPlayerToUncover)
-            revealFirstLocation()
-            startTurn(startPlayer)
+            val firstLocation = createRandomLocation(game)
+            revealFirstLocation(firstLocation)
+            startTurn(firstPlayerToUncover, game)
+            /* startTurn(startPlayer) */
 
             currentTurn++
 
@@ -54,8 +49,7 @@ class GameService() : IGameRepository {
                     endGame("gameId")
                 }
                 break
-            }
-            else {
+            } else {
                 endTurn()
                 continue
             }
@@ -98,48 +92,82 @@ class GameService() : IGameRepository {
         else return players.random()
     }
 
-    private fun Player.drawCards(amount: Int) {
-        // Draw random amount of cards from the deck for this player
-        for (i in 1..amount) {
-            this.Hand.add(this.selectedDeck.Cards.random())
+    private fun Player.drawCards(amount: Int, cardPile: List<Card>) {
+
+        //Per ogni player pesca da cardPile amount carte
+        for (i in 0 until amount) {
+            val card = cardPile.random()
+
+            if (!this.Hand.contains(card))
+                this.Hand.add(card)
         }
-    }
-
-    suspend fun revealFirstLocation() {
-        // Reveal the first location card
 
     }
 
-    override suspend fun startTurn(startPlayer: Player) {
+    fun createRandomLocation(game: Game): Location {
+        return game.locations.random()
+    }
 
-        var chosenAction = readln().toIntOrNull()
+    fun revealFirstLocation(location: Location) {
+        location.hidden = false
 
-        if (chosenAction == null) {
+        println("La prima location è: ${location.name}. Effetto: ${location.effect}")
+    }
+
+    override fun startTurn(startPlayer: Player, game: Game) {
+
+        //region System Message
+
+        println("Azioni disponibili: ")
+
+        for (i in PlayerAction.entries.toTypedArray().indices) {
+            println("${i + 1}. ${PlayerAction.entries[i]}")
+        }
+
+        println("___________________________________________________________________")
+
+        val chosenAction = readln().toInt()
+
+        if (chosenAction < -1) {
             println("Inserisci un numero valido.")
-            return startTurn(startPlayer)
+            return startTurn(startPlayer, game)
         }
 
+        performAction(chosenAction, startPlayer, game)
+
+        //endregion
+    }
+
+    private fun performAction(chosenAction: Int, startPlayer: Player, game: Game): Unit {
         val action = PlayerAction.entries[chosenAction - 1]
 
         when (action) {
-            PlayerAction.END_TURN -> endTurn()
-            PlayerAction.PLAY_CARD -> playCard(startPlayer)
-            PlayerAction.SURREND -> surrender(startPlayer)
+            PlayerAction.END_TURN    -> endTurn()
+            PlayerAction.PLAY_CARD   -> playCard(startPlayer, game, chosenAction)
+            PlayerAction.SURREND     -> surrender(startPlayer)
             PlayerAction.USE_ABILITY -> useAbility(startPlayer)
+            PlayerAction.VIEW_BOARD  -> println(
+                "Il tuo punteggio è: ${
+                    startPlayer.Board.calculateTotalPower(
+                        startPlayer.Hand,
+                        game.locations
+                    )
+                }"
+            )
         }
     }
 
-    override suspend fun endTurn() {
+    override fun endTurn() {
         // End the turn
 
     }
 
-    override suspend fun endGame(gameId: String) {
+    override fun endGame(gameId: String) {
         TODO("Not yet implemented")
     }
 
-    override suspend fun createPlayer(s: String): Player {
-        return Player(s)
+    override fun createPlayer(nickname: String): Player {
+        return Player(nickname)
     }
 
     private fun useAbility(player: Player) {
@@ -150,11 +178,44 @@ class GameService() : IGameRepository {
         TODO("Not yet implemented")
     }
 
-    private fun playCard(player: Player) {
-        TODO("Not yet implemented")
+    private fun playCard(player: Player, game: Game, input: Int? = null): Any {
+
+        var modelledInput = input ?: readln().toInt()
+        do {
+            print("Turno di ${player.nickName}. Mana disponibile: ${player.CurrentMana}.")
+            print("Premi -1 per tornare al menù o seleziona (in numero) la carta: ")
+            val selectedCardIndex = printPlayerCurrentHand(player, game)
+
+            if (modelledInput == -1) {
+                return choosePlayerAction(player, game)
+            } else {
+                val selectedCard = player.Hand[selectedCardIndex.toString().toInt() - 1]
+
+                // Se il giocatore non ha abbastanza mana per giocare la carta, chiedi di sceglierne un'altra
+                if (selectedCard.energyCost > player.CurrentMana) {
+                    println("Non hai abbastanza mana per giocare questa carta.")
+                    return playCard(player, game)
+                }
+
+                print("Scegli una location: ")
+
+                // Mostra le location disponibili
+                for (i in game.locations.indices) {
+                    println("- ${i + 1}. ${game.locations[i].name}")
+                }
+
+                val chosenLocationIndex = readln().toIntOrNull()
+
+                // Gioca la carta selezionata
+                player.playCard(selectedCard, chosenLocationIndex, game)
+
+                return choosePlayerAction(player, game)
+            }
+
+        } while (modelledInput < -1 || modelledInput > player.Hand.size)
     }
 
-    private suspend fun Player.choosePlayerAction(player: Player): PlayerAction {
+    private fun choosePlayerAction(player: Player, game: Game): Unit {
 
         // Mostra al giocatore le opzioni disponibili (es. giocare una carta, usare un'abilità, terminare il turno)
         println("Azioni disponibili:")
@@ -163,13 +224,38 @@ class GameService() : IGameRepository {
             println("${i + 1}. ${PlayerAction.entries[i]}")
         }
         // Fai scegliere al giocatore un'azione
-        var selectedActionIndex: Int?
+        var action: Int
         do {
-            print("Scegli un'azione (inserisci il numero): ")
-            selectedActionIndex = readlnOrNull()?.toIntOrNull()
-        } while (selectedActionIndex == null || selectedActionIndex < 1 || selectedActionIndex > PlayerAction.entries.size)
+            print("Scegli un'azione (inserisci il numero) o premi -1 per tornare al menù: ")
+            action = readln().toInt()
 
-        // Restituisci l'azione scelta dal giocatore
-        return PlayerAction.entries[selectedActionIndex - 1]
+            performAction(action, player, game)
+
+        } while (action == null || action > PlayerAction.entries.size)
+    }
+
+    private fun printPlayerCurrentHand(player: Player, game: Game): Any {
+        println("Carte in mano:")
+        for (i in player.Hand.indices) {
+            println("${i + 1}. ${player.Hand[i].name}")
+            println("- Costo: ${player.Hand[i].energyCost}")
+            println("- Potenza:  ${player.Hand[i].basePower}")
+            println("- Abilità: ${player.Hand[i].ability}")
+            println("___________________________________________________________________")
+        }
+
+        // Fai scegliere al giocatore una carta da giocare
+        var selectedCardIndex: Int?
+        do {
+            print("Scegli una carta da giocare (inserisci il numero) o seleziona -1 per tornare al menù: ")
+            selectedCardIndex = readln().toInt()
+
+            if (selectedCardIndex == -1) {
+                // Se il giocatore ha premuto -1, torna al menù
+                return choosePlayerAction(player, game)
+            }
+            return selectedCardIndex
+
+        } while (selectedCardIndex == null || selectedCardIndex > player.Hand.size)
     }
 }

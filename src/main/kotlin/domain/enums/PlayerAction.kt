@@ -4,5 +4,6 @@ enum class PlayerAction {
     END_TURN,
     PLAY_CARD,
     SURREND,
-    USE_ABILITY
+    USE_ABILITY,
+    VIEW_BOARD
 }

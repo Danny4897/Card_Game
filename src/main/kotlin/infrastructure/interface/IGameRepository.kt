@@ -4,10 +4,10 @@ import org.example.domain.data_class.Game
 import org.example.domain.data_class.Player
 
 interface IGameRepository {
-    suspend fun startGame(player1: Player, player2: Player)
-    suspend fun startTurn(startPlayer: Player): Unit
-    suspend fun endTurn(): Unit
-    suspend fun endGame(gameId: String): Unit
-    suspend abstract fun createPlayer(s: String): Player
-    suspend fun Play(game: Game, player: List<Player>): Unit
+    fun startGame(player1: Player, player2: Player)
+    fun startTurn(startPlayer: Player, game: Game): Unit
+    fun endTurn(): Unit
+    fun endGame(gameId: String): Unit
+    abstract fun createPlayer(s: String): Player
+    fun Play(game: Game, player: List<Player>): Unit
 }

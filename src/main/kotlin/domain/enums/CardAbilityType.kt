@@ -5,5 +5,14 @@ enum class CardAbilityType {
     OnPlay,
     OnGoing,
     EndGame,
-    Other
+    DOUBLE_POWER,
+    HEAL,
+    NEGATE_POWER_MODIFIERS,
+    DRAW_CARD,
+    SUBSTRACT_MANA,
+    STEAL_MANA,
+    DOUBLE_POWER_MODIFIER,
+    TELEPORT,
+    Other,
+    None,
 }

@@ -5,7 +5,7 @@ class PlayerBoard() {
     fun calculateLocationpower(location : Location, playerCards: List<Card>) : Int {
         var power = 0
         for (card in playerCards) {
-            if (card.location == location) {
+            if(location.cardListP1.contains(card) || location.cardListP2.contains(card)) {
                 power += card.powerModifier
             }
         }
